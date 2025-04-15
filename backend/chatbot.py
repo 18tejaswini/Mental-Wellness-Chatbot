@@ -2,8 +2,11 @@ import requests
 from flask import Flask, request, jsonify
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from flask_cors import CORS
+import os
+from dotenv import load_dotenv
 
-API_KEY = ""
+load_dotenv()
+API_KEY = os.getenv("HUGGINGFACE_API_KEY")
 API_URL = "https://api-inference.huggingface.co/models/facebook/blenderbot-3B"
 HEADERS = {"Authorization": f"Bearer {API_KEY}"}
 
