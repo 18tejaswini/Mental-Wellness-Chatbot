@@ -15,3 +15,12 @@ What makes it stand out is the following:
 1. Proactive intervention: Implement a mechanism where the chatbot recognizes distress signals and stops the conversation.
 2. Personalized insights: Provide users with personalized reports and visualizations to track emotional well being over time.
 3. Handling sensitive user conversations: Implementing data obfuscation techniques to help enhance privacy and security.
+
+# Steps
+
+STEP 1: Chatbot Integration
+STEP 2: Sentiment scoring and proactive intervention using VADER
+STEP 3: Chatbot Backend Development using Flask API
+STEP 4: Frontend development and UI design using React.js
+STEP 5: Power BI integration with personalized insights
+STEP 6: Data Privacy and security measures using Tokenization, Row level security and JWT.
