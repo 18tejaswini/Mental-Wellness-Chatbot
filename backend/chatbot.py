@@ -1,5 +1,5 @@
 import requests
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, session
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from flask_cors import CORS
 import os
@@ -11,6 +11,7 @@ API_URL = "https://api-inference.huggingface.co/models/facebook/blenderbot-3B"
 HEADERS = {"Authorization": f"Bearer {API_KEY}"}
 
 app = Flask(__name__)
+app.secret_key = os.getenv("FLASK_SECRET_KEY")
 CORS(app)
 analyzer = SentimentIntensityAnalyzer()
 @app.route("/", methods=["GET"])
@@ -38,7 +39,7 @@ def chat_with_llama(prompt):
         return "Sorry, I'm experiencing issues. Please try again later."
 @app.route("/chat", methods=["POST"])
 def chat():
-    """API endpoint for chatbot with distress detection"""
+    """API endpoint for chatbot with session-based distress score tracking"""
     data = request.json
     user_message = data.get("message", "")
     
@@ -47,18 +48,26 @@ def chat():
     
     distress_score = analyze_sentiment(user_message)
     
-    if distress_score >= 80:
+    distress_history = session.get("distress_scores", [])
+    distress_history.append(distress_score)
+    N = 5
+    if len(distress_history) > N:
+        distress_history = distress_history[-N:]
+    session["distress_scores"] = distress_history
+    avg_distress = sum(distress_history) / len(distress_history)
+    if avg_distress >= 80:
         return jsonify({
             "response": "I'm really sorry that you are feeling this way. You are not alone. "
                         "Please consider reaching out to a professional for support.",
             "help_resource": "https://www.mentalhealth.gov/get-help/immediate-help",  
-            "distress_score": distress_score
+            "distress_score": distress_score,
+            "avg_distress": avg_distress
         })
-    
     chatbot_response = chat_with_llama(user_message)
     return jsonify({
         "response": chatbot_response,
-        "distress_score": distress_score
+        "distress_score": distress_score,
+        "avg_distress": avg_distress
     })
 if __name__ == "__main__":
     app.run(debug=True)
