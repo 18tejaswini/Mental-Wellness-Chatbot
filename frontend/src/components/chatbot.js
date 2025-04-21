@@ -22,14 +22,18 @@ const Chatbot = () => {
             
             if (response.data.distress_score >= 80 || response.data.avg_distress >= 80) {
                 setDisabled(true);
-                botMessage.content += `\n🚨 **Distress Level: ${response.data.distress_score}%**`;
-                botMessage.content += `\n📊 **Average Distress: ${response.data.avg_distress}%**`;
+                botMessage.content += `\n🚨 **Distress Level: ${response.data.distress_score.toFixed(2)}%**`;
+                botMessage.content += `\n📊 **Average Distress: ${response.data.avg_distress.toFixed(2)}%**`;
                 botMessage.content += `\n🔗 [Get Immediate Help](${response.data.help_resource})`;
 
                 setMessages([...messages, userMessage, botMessage, 
                     { role: "system", content: " Chat has been disabled for your well-being. Please seek professional help." }
                 ]);
-            } else {
+            }
+            else if(response.data.response==="Sorry, I'm experiencing issues. Please try again later."){
+                setMessages([...messages, userMessage, botMessage]);
+            } 
+            else {
                 botMessage.content += `\n📊 *Average Distress: ${response.data.avg_distress.toFixed(2)}%*`;
                 setMessages([...messages, userMessage, botMessage]); 
             }
