@@ -4,14 +4,24 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from flask_cors import CORS
 import os
 from dotenv import load_dotenv
+import pyodbc
 
 load_dotenv()
 API_KEY = os.getenv("HUGGINGFACE_API_KEY")
+SERVER_NAME = os.getenv("SERVER_NAME")
+SECRET_KEY = os.getenv("FLASK_SECRET_KEY")
 API_URL = "https://api-inference.huggingface.co/models/facebook/blenderbot-3B"
 HEADERS = {"Authorization": f"Bearer {API_KEY}"}
+conn = pyodbc.connect(
+    f"DRIVER={{ODBC Driver 17 for SQL Server}};"
+    f"SERVER={SERVER_NAME};"
+    "DATABASE=ChatbotDB;"
+    "Trusted_Connection=yes;"
+)
+cursor = conn.cursor()
 
 app = Flask(__name__)
-app.secret_key = os.getenv("FLASK_SECRET_KEY")
+app.secret_key = SECRET_KEY
 CORS(app)
 analyzer = SentimentIntensityAnalyzer()
 @app.route("/", methods=["GET"])
@@ -56,14 +66,24 @@ def chat():
     session["distress_scores"] = distress_history
     avg_distress = sum(distress_history) / len(distress_history)
     if avg_distress >= 80:
+        response_text = "I am really sorry that you are feeling this way. You are not alone. Please consider reaching out to a professional for support."
+        cursor.execute("""
+            INSERT INTO ChatHistory (UserId, UserMessage, BotResponse, DistressScore, AvgDistress)
+            VALUES (?, ?, ?, ?, ?)
+        """, ("user1", user_message, response_text, distress_score, avg_distress))
+        conn.commit()
         return jsonify({
-            "response": "I'm really sorry that you are feeling this way. You are not alone. "
-                        "Please consider reaching out to a professional for support.",
+            "response": response_text,
             "help_resource": "https://www.mentalhealth.gov/get-help/immediate-help",  
             "distress_score": distress_score,
             "avg_distress": avg_distress
         })
     chatbot_response = chat_with_llama(user_message)
+    cursor.execute("""
+        INSERT INTO ChatHistory (UserId, UserMessage, BotResponse, DistressScore, AvgDistress)
+        VALUES (?, ?, ?, ?, ?)
+    """, ("user1", user_message, chatbot_response, distress_score, avg_distress))
+    conn.commit()
     return jsonify({
         "response": chatbot_response,
         "distress_score": distress_score,
