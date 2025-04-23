@@ -5,11 +5,14 @@ from flask_cors import CORS
 import os
 from dotenv import load_dotenv
 import pyodbc
+import jwt
 
 load_dotenv()
 API_KEY = os.getenv("HUGGINGFACE_API_KEY")
 SERVER_NAME = os.getenv("SERVER_NAME")
 SECRET_KEY = os.getenv("FLASK_SECRET_KEY")
+JWT_SECRET = os.getenv("JWT_SECRET_KEY")
+JWT_ALGORITHM = "HS256"
 API_URL = "https://api-inference.huggingface.co/models/facebook/blenderbot-3B"
 HEADERS = {"Authorization": f"Bearer {API_KEY}"}
 conn = pyodbc.connect(
@@ -24,6 +27,18 @@ app = Flask(__name__)
 app.secret_key = SECRET_KEY
 CORS(app)
 analyzer = SentimentIntensityAnalyzer()
+def generate_jwt(user_id):
+    payload = {
+        "user_id": user_id
+    }
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+def verify_jwt(token):
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        return payload["user_id"]
+    except jwt.InvalidTokenError:
+        return None
 @app.route("/", methods=["GET"])
 def home():
     return "Chatbot API is running!"
@@ -49,6 +64,12 @@ def chat_with_llama(prompt):
         return "Sorry, I'm experiencing issues. Please try again later."
 @app.route("/chat", methods=["POST"])
 def chat():
+    token = request.headers.get("Authorization")
+    if not token:
+        return jsonify({"message": "Missing token"}), 401
+    user_id = verify_jwt(token)
+    if not user_id:
+        return jsonify({"message": "Invalid token"}), 401
     """API endpoint for chatbot with session-based distress score tracking"""
     data = request.json
     user_message = data.get("message", "")
@@ -70,7 +91,7 @@ def chat():
         cursor.execute("""
             INSERT INTO ChatHistory (UserId, UserMessage, BotResponse, DistressScore, AvgDistress)
             VALUES (?, ?, ?, ?, ?)
-        """, ("user1", user_message, response_text, distress_score, avg_distress))
+        """, (user_id, user_message, response_text, distress_score, avg_distress))
         conn.commit()
         return jsonify({
             "response": response_text,
@@ -82,12 +103,25 @@ def chat():
     cursor.execute("""
         INSERT INTO ChatHistory (UserId, UserMessage, BotResponse, DistressScore, AvgDistress)
         VALUES (?, ?, ?, ?, ?)
-    """, ("user1", user_message, chatbot_response, distress_score, avg_distress))
+    """, (user_id, user_message, chatbot_response, distress_score, avg_distress))
     conn.commit()
     return jsonify({
         "response": chatbot_response,
         "distress_score": distress_score,
         "avg_distress": avg_distress
     })
+@app.route("/login", methods=["POST"])
+def login():
+    data = request.json
+    user_id = data.get("userId")
+    password = data.get("password")
+    cursor.execute("SELECT PasswordHash FROM Users WHERE UserId = ?", (user_id,))
+    row = cursor.fetchone()
+    if row and password == row[0]:
+        token = generate_jwt(user_id)
+        return jsonify({"token": token})
+    else:
+        return jsonify({"message": "Invalid credentials"}), 401
+
 if __name__ == "__main__":
     app.run(debug=True)
