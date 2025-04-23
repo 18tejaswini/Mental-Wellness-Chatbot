@@ -6,6 +6,7 @@ import os
 from dotenv import load_dotenv
 import pyodbc
 import jwt
+import bcrypt
 
 load_dotenv()
 API_KEY = os.getenv("HUGGINGFACE_API_KEY")
@@ -117,7 +118,7 @@ def login():
     password = data.get("password")
     cursor.execute("SELECT PasswordHash FROM Users WHERE UserId = ?", (user_id,))
     row = cursor.fetchone()
-    if row and password == row[0]:
+    if row and bcrypt.checkpw(password.encode(), row[0].encode()):
         token = generate_jwt(user_id)
         return jsonify({"token": token})
     else:
