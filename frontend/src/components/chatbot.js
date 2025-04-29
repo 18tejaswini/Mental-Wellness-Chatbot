@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import axios from "axios";
 import "./chatbot.css";
+import { Link } from "react-router-dom";
 
 const Chatbot = () => {
     const [userId, setUserId] = useState("");
@@ -117,6 +118,9 @@ const Chatbot = () => {
                             {loading ? "..." : "Send"}
                         </button>
                     </div>
+                    <Link to="/dashboard">
+                        <button style={{ marginTop: "20px" }}>View Wellness Dashboard</button>
+                    </Link>
                 </>
             )}
         </div>
